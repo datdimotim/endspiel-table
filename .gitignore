@@ -1,0 +1,7 @@
+.stack-work/
+.idea
+out
+stack.yaml.lock
+haskell-proj.cabal
+*~
+/haskell-proj.iml
