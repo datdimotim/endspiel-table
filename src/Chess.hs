@@ -10,39 +10,42 @@ import Text.Read hiding (step)
 import Control.Monad
 import Data.Monoid
 import Data.Maybe (fromMaybe, listToMaybe, isNothing)
-import Data.List (nub)
+import Data.List (nub, sort)
 import qualified Data.Map.Strict as M (Map, toList)
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import Data.Foldable (toList)
+import Data.Foldable (toList, find)
 import Data.Array (Array, Ix, listArray, (!), (//), assocs)
+import qualified Data.HashTable.IO as H
+type HashTable k v = H.BasicHashTable k v
 
 --play357 = play $ G357 [5,5,5]
 
                
 
 emptyBoard :: Board
-emptyBoard = let
-               f = listArray (Coords 0 0, Coords 7 7) (replicate 64 Nothing)
-             in 
-               Board f White            
+emptyBoard = Board [] White
                
 placeFigure :: Field -> Coords -> Board -> Board
-placeFigure fig c (Board f clr) = let
-                                    f' = f // [(c, fig)]
-                                  in 
-                                    Board f' clr    
-                                    
+placeFigure Nothing c (Board f clr) =  Board (filter ((/= c) . fst) f) clr
+placeFigure (Just fig) c (Board f clr) = let
+                                           f' = sort . ((c, fig) :) . filter ((/= c) . fst) $ f
+                                         in
+                                           Board f' clr
+
+getField :: Coords -> Board -> Field
+getField c (Board fs _) = snd <$> find ((==c) . fst) fs
 
 doMove :: Coords -> Coords -> Board -> Board
-doMove c c' (Board f s) = let
-                            fg = f ! c
-                          in
-                            Board (f // [(c, Nothing), (c', fg)]) (invColor s)
+doMove c c' board@(Board f s) = let
+                                  fg = getField c board
+                                  Board f' _ = placeFigure Nothing c . placeFigure fg c' $ board
+                                in
+                                  Board f' (invColor s)
                   
 
 isEmptyField :: Board -> Coords -> Bool
-isEmptyField (Board f _ ) c = isNothing (f ! c)
+isEmptyField b c = isNothing (getField c b)
 
 applyOffset :: Coords -> Offset -> Maybe Coords
 applyOffset (Coords l n) (Offset dl dn) = let
@@ -94,7 +97,7 @@ filterSelfBeatMoves c b = let
                           in concatMap f
 
 filterSelfBeats :: Color -> Board -> Coords -> Maybe Coords
-filterSelfBeats clr (Board field _) coord = case field ! coord of
+filterSelfBeats clr b coord = case getField coord b of
                                             Nothing -> Just coord
                                             Just (Fig _ c) -> if c == clr 
                                                               then Nothing
@@ -125,14 +128,11 @@ posIsValid board@(Board f ms) = let
                                     c <- findKing (invColor ms)
                                     findKing ms
                                     return $ not (isBeatField board ms c)
-                 
-
-getFigures :: Board -> [(Coords, Fig)]
-getFigures = concatMap (\(c, m) -> toList . fmap (c,) $ m) . assocs . getFields
+                
 
 
 getColoredFigures :: Color -> Board -> [(Coords, Fig)]
-getColoredFigures c = filter ((== c) . getColor . snd) . getFigures
+getColoredFigures c = filter ((== c) . getColor . snd) . getFields
 
 isBeatField :: Board -> Color -> Coords -> Bool
 isBeatField b clr c =  let
@@ -190,7 +190,7 @@ tstBoard =   placeFigure (Just (Fig King White)) (Coords 3 3)
 
 numColumns = 3
 maxCapacity = 5
-newtype G357 = G357 [Int] deriving (Eq, Ord, Show, Read) 
+newtype G357 = G357 [Int] deriving (Eq, Ord, Show, Read)
 
 movesH :: (Int -> [Int]) -> (G357 -> [G357])
 movesH f (G357 as) = map G357 . helper $ as where
@@ -257,6 +257,17 @@ buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList en
                          putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')  
                          helper (d+1) w' l' p'
 
+{-
+stepM :: Game pos => Int -> HashTable pos Int -> HashTable pos Int -> Set pos -> (Map pos Int, Map pos Int, Set pos)
+stepM d wins loses ps = let
+                          undo  = Set.fromList . concatMap preMoves . Set.toList
+                          undo1 = undo ps
+                          undo2 = undo undo1
+                          wins' = wins `Map.union` fromSet (const d) undo1
+                          newLoses = Set.filter (\p -> all (\v -> Map.member v wins') (moves p)) undo2
+                          loses' = loses `Map.union` fromSet (const (d+1)) newLoses
+                         in (wins',loses',newLoses)
+-}
 
 depth = 16
 table = buildTable depth :: (M.Map Board Int, M.Map Board Int)

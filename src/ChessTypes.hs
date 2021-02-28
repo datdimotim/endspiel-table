@@ -108,23 +108,14 @@ data Offset = Offset { getDLetter :: Int
                      }
 
 
-data Board = Board { getFields   :: Array Coords Field
+data Board = Board { getFields   :: [(Coords, Fig)]
                , getMoveSide :: Color
                } deriving (Eq, Ord, Show, Read)
                
 
 
 instance Enum Board where
-  toEnum n = let
-               (fgs :: [(Coords, Fig)], ms :: Color) = toEnum n
-               bounds = (Coords 0 0, Coords 7 7)
-               field = accumArray (flip const) Nothing bounds (map (\(c, f) -> (c, Just f)) fgs)
-             in
-               Board field ms
-  fromEnum (Board field ms) = let
-                                fgs :: [(Coords, Fig)]
-                                fgs = concatMap (toList . (\(c, f) -> (c,) <$> f)) . assocs $ field
-                              in 
-                                fromEnum (fgs, ms)
+  toEnum = uncurry Board . toEnum
+  fromEnum (Board fgs ms) = fromEnum (fgs, ms)
 
                   

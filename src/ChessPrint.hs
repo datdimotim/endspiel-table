@@ -3,7 +3,7 @@ module ChessPrint where
 import ChessTypes
 
 import Data.Char (toUpper)
-import Data.Array (Array, Ix, listArray, (!), (//))
+import Data.Array (Array, Ix, listArray, (!), (//), accumArray)
 
 replacePlaceholders :: Char -> String -> [String] -> String
 replacePlaceholders _ [] _ = []
@@ -35,7 +35,8 @@ formatBoard (Board b ms) = let
                                     n <- reverse [0..7]
                                     l <- [0..7]
                                     let c = Coords l n
-                                    let f = b ! c
+                                    let field = accumArray (flip const) Nothing (Coords 0 0, Coords 7 7) (map (\(c, f) -> (c, Just f)) b)
+                                    let f = field ! c
                                     return $ printFig f 
                            in 
                               replacePlaceholders '*' boardTemplate (d ++ [show ms])
