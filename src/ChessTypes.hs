@@ -76,15 +76,15 @@ instance (Bounded a, Enum a) => Enum [a] where
                signLen  = length signPart
                addCount = len - signLen 
              in
-               reverse $ signPart ++ take addCount (repeat minBound)
+               reverse $ signPart ++ replicate addCount minBound
                
   fromEnum :: forall  a . (Bounded a, Enum a) => [a] -> Int
   fromEnum l = let
                max = 1 + fromEnum (maxBound :: a)
                offset = getSum $ foldMap (Sum . pow max) [0 .. length l - 1]
                ff :: Int -> Int -> Int
-               ff e = \a -> a * max + (fromEnum e)
-               ind = ($ 0) . appEndo . foldMap (\e -> Endo $ ff (fromEnum e)) $ reverse l
+               ff e = \a -> a * max + fromEnum e
+               ind = ($ 0) . appEndo . foldMap (Endo . ff . fromEnum) $ reverse l
              in
                offset + ind
 
@@ -117,7 +117,7 @@ data Board = Board { getFields   :: Array Coords Field
 instance Enum Board where
   toEnum n = let
                (fgs :: [(Coords, Fig)], ms :: Color) = toEnum n
-               bounds = ((Coords 0 0), (Coords 7 7))
+               bounds = (Coords 0 0, Coords 7 7)
                field = accumArray (flip const) Nothing bounds (map (\(c, f) -> (c, Just f)) fgs)
              in
                Board field ms

@@ -9,7 +9,7 @@ import ChessPrint
 import Text.Read hiding (step)
 import Control.Monad
 import Data.Monoid
-import Data.Maybe (fromMaybe, listToMaybe)
+import Data.Maybe (fromMaybe, listToMaybe, isNothing)
 import Data.List (nub)
 import qualified Data.Map.Strict as M (Map, toList)
 import qualified Data.Set as Set
@@ -23,7 +23,7 @@ import Data.Array (Array, Ix, listArray, (!), (//), assocs)
 
 emptyBoard :: Board
 emptyBoard = let
-               f = listArray ((Coords 0 0), (Coords 7 7)) (take 64 $ repeat Nothing)
+               f = listArray (Coords 0 0, Coords 7 7) (replicate 64 Nothing)
              in 
                Board f White            
                
@@ -42,7 +42,7 @@ doMove c c' (Board f s) = let
                   
 
 isEmptyField :: Board -> Coords -> Bool
-isEmptyField (Board f _ ) c = f ! c == Nothing
+isEmptyField (Board f _ ) c = isNothing (f ! c)
 
 applyOffset :: Coords -> Offset -> Maybe Coords
 applyOffset (Coords l n) (Offset dl dn) = let
@@ -60,7 +60,7 @@ applyOffset (Coords l n) (Offset dl dn) = let
 
 iterateOffset :: Board -> Coords -> Offset -> [Coords]
 iterateOffset b c dc = case applyOffset c dc of 
-                         Just c' -> if (not $ isEmptyField b c')
+                         Just c' -> if not $ isEmptyField b c'
                                     then [c']
                                     else c' : iterateOffset b c' dc
                          Nothing -> []
@@ -115,7 +115,7 @@ findFig board (Fig fig clr) = filter ((== fig) . getFigType . snd) . getColoredF
 findFigExactOne :: Board -> Fig -> Maybe Coords
 findFigExactOne b f = case findFig b f of
                                    [(c, _)] -> Just c
-                                   otherwise -> Nothing
+                                   _ -> Nothing
 
 posIsValid :: Board -> Bool
 posIsValid board@(Board f ms) = let
@@ -190,7 +190,7 @@ tstBoard =   placeFigure (Just (Fig King White)) (Coords 3 3)
 
 numColumns = 3
 maxCapacity = 5
-data G357 = G357 [Int] deriving (Eq, Ord, Show, Read) 
+newtype G357 = G357 [Int] deriving (Eq, Ord, Show, Read) 
 
 movesH :: (Int -> [Int]) -> (G357 -> [G357])
 movesH f (G357 as) = map G357 . helper $ as where
@@ -248,7 +248,7 @@ depth: 27  wins: 1219068  loses: 682241  newPos: 682240
 
 buildTableInteractive :: Game pos => IO (Map.Map pos Int, Map.Map pos Int)
 buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList endLoses)  where
-    wrap = Map.fromList . map (\p -> (p, 0))
+    wrap = Map.fromList . map (, 0)
     helper d w l p = if null p 
                      then return (w, l)
                      else
@@ -259,12 +259,12 @@ buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList en
 
 
 depth = 16
-table = (buildTable depth) :: (M.Map Board Int, M.Map Board Int)
-longestLoses =  filter ( (==(depth-1)) . snd) $ (M.toList  $ fst table)
+table = buildTable depth :: (M.Map Board Int, M.Map Board Int)
+longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 
 mainFunc :: IO ()
-mainFunc = const () <$> buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
+mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
 
 
 {-
