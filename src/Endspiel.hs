@@ -1,6 +1,4 @@
-{-# LANGUAGE TupleSections #-}
-
-module Endspiel (Game (..), Status (..), move) where
+module Endspiel (Game (..), Status (..), move, step) where
 
 import Prelude hiding (lookup)
 import Data.Map.Strict hiding (filter, map, null)
@@ -18,10 +16,10 @@ class (Ord pos, Show pos) => Game pos where
   endLoses :: [pos]
   endWins  :: [pos]
 
-  buildTable :: (Map pos Int, Map pos Int)
-  buildTable = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList endLoses)  where
-    wrap = Map.fromList . map (, 0)
-    helper d w l p | Set.null p    =  (w, l)
+  buildTable :: Int -> (Map pos Int, Map pos Int)
+  buildTable maxd = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList endLoses)  where
+    wrap = Map.fromList . map (\p -> (p, 0))
+    helper d w l p | Set.null p || d == maxd    =  (w, l)
                    | otherwise = case step d w l p of (w', l', p') -> helper (d+1) w' l' p'  
 
 step :: Game pos => Int -> Map pos Int -> Map pos Int -> Set pos -> (Map pos Int, Map pos Int, Set pos)
@@ -30,7 +28,7 @@ step d wins loses ps = let
                           undo1 = undo ps 
                           undo2 = undo undo1
                           wins' = wins `Map.union` fromSet (const d) undo1
-                          newLoses = Set.filter (all (`Map.member` wins') . moves) undo2
+                          newLoses = Set.filter (\p -> all (\v -> Map.member v wins') (moves p)) undo2
                           loses' = loses `Map.union` fromSet (const (d+1)) newLoses
                          in (wins',loses',newLoses)
 ------------------------------------------------------------------------------------------
@@ -51,14 +49,14 @@ instance Ord Status where
     
 
 move :: Game pos => pos -> (Maybe pos, Status)
-move mv | mv `elem` endWins  = (Nothing, Lose 0)
-        | mv `elem` endLoses = (Nothing, Win 0)
+move mv | elem mv endWins  = (Nothing, Lose 0)
+        | elem mv endLoses = (Nothing, Win 0)
         | otherwise = let
-                        (loses, wins) = buildTable
+                        (loses, wins) = buildTable (-1)
                         positions = (Map.map Win wins `Map.union` Map.map Lose loses)
                         join p = F.toList $ (,) p <$> lookup p positions
                         movesAvail  = concatMap join (moves mv)
-                        best = F.minimumBy (comparing snd) movesAvail
+                        best = (F.minimumBy (comparing snd) movesAvail)
                       in
                         (Just $ fst best, snd best) 
 

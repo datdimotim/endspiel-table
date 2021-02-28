@@ -14,7 +14,7 @@ play357 = play $ G357 [5,5,5]
 
 numColumns = 3
 maxCapacity = 5
-newtype G357 = G357 [Int] deriving (Eq, Ord, Show, Read) 
+data G357 = G357 [Int] deriving (Eq, Ord, Show, Read) 
 
 movesH :: (Int -> [Int]) -> (G357 -> [G357])
 movesH f (G357 as) = map G357 . helper $ as where

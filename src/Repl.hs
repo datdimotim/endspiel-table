@@ -19,7 +19,9 @@ repl s f = let
                         print s'
                         let (ms, b) = f s'
                         print (ms, b)
-                        forM_ ms helper
+                        case ms of 
+                             Just s' -> helper s'
+                             Nothing -> return ()
            in helper s
            
 play :: (Game p, MoveReader p a) => p -> IO ()
