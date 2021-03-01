@@ -10,7 +10,7 @@ import Text.Read hiding (step)
 import Control.Monad
 import Data.Monoid
 import Data.Maybe (fromMaybe, listToMaybe, isNothing)
-import Data.List (nub, sort)
+import Data.List (nub, sort, permutations)
 import qualified Data.Map.Strict as M (Map, toList)
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
@@ -24,24 +24,25 @@ type HashTable k v = H.BasicHashTable k v
                
 
 emptyBoard :: Board
-emptyBoard = Board [] White
+emptyBoard = mkBoard [] White
                
 placeFigure :: Field -> Coords -> Board -> Board
-placeFigure Nothing c (Board f clr) =  Board (filter ((/= c) . fst) f) clr
-placeFigure (Just fig) c (Board f clr) = let
-                                           f' = sort . ((c, fig) :) . filter ((/= c) . fst) $ f
-                                         in
-                                           Board f' clr
+placeFigure Nothing c =  mapFields $ filter ((/= c) . fst)
+placeFigure (Just fig) c = let
+                             mapper = ((c, fig) :) . filter ((/= c) . fst)
+                           in
+                             mapFields mapper
 
 getField :: Coords -> Board -> Field
-getField c (Board fs _) = snd <$> find ((==c) . fst) fs
+getField c b = snd <$> find ((==c) . fst) (getFields b)
 
 doMove :: Coords -> Coords -> Board -> Board
-doMove c c' board@(Board f s) = let
-                                  fg = getField c board
-                                  Board f' _ = placeFigure Nothing c . placeFigure fg c' $ board
-                                in
-                                  Board f' (invColor s)
+doMove c c' board = let
+                      s = getMoveSide board
+                      fg = getField c board
+                      f'  = getFields . placeFigure Nothing c . placeFigure fg c' $ board
+                    in
+                      mkBoard f' (invColor s)
                   
 
 isEmptyField :: Board -> Coords -> Bool
@@ -104,12 +105,13 @@ filterSelfBeats clr b coord = case getField coord b of
                                                               else Just coord 
 
 isMate :: Board -> Bool
-isMate board@(Board f ms) = let
-                              mk = findFigExactOne board (Fig King ms)
-                            in
-                              fromMaybe False $ do
-                                k <- mk
-                                return (isBeatField board (invColor ms) k && (null . availMoves) board)
+isMate board = let
+                 ms = getMoveSide board
+                 mk = findFigExactOne board (Fig King ms)
+               in
+                 fromMaybe False $ do
+                 k <- mk
+                 return (isBeatField board (invColor ms) k && (null . availMoves) board)
                               
 
 findFig :: Board -> Fig -> [(Coords, Fig)]
@@ -121,13 +123,14 @@ findFigExactOne b f = case findFig b f of
                                    _ -> Nothing
 
 posIsValid :: Board -> Bool
-posIsValid board@(Board f ms) = let
-                                  findKing c = findFigExactOne board (Fig King c)         
-                                in
-                                  fromMaybe False $ do
-                                    c <- findKing (invColor ms)
-                                    findKing ms
-                                    return $ not (isBeatField board ms c)
+posIsValid board = let
+                     ms = getMoveSide board
+                     findKing c = findFigExactOne board (Fig King c)         
+                   in
+                     fromMaybe False $ do
+                       c <- findKing (invColor ms)
+                       findKing ms
+                       return $ not (isBeatField board ms c)
                 
 
 
@@ -152,27 +155,29 @@ availMovesBoard :: Board -> [Board]
 availMovesBoard b = map (\(c, c') -> doMove c c' b) (availMoves b)
 
 prevMovesBoard :: Board -> [Board]
-prevMovesBoard board@(Board _ ms) = let
-                                  fgs = getColoredFigures (invColor ms) board 
-                                in
-                                  do
-                                    (c, fg) <- fgs
-                                    c' <- figureMoves fg board c
-                                    guard $ isEmptyField board c'
-                                    let b' = doMove c c' board 
-                                    guard $ posIsValid b'
-                                    return b'
+prevMovesBoard board = let
+                         ms = getMoveSide board
+                         fgs = getColoredFigures (invColor ms) board 
+                       in
+                         do
+                           (c, fg) <- fgs
+                           c' <- figureMoves fg board c
+                           guard $ isEmptyField board c'
+                           let b' = doMove c c' board 
+                           guard $ posIsValid b'
+                           return b'
 
 availMoves :: Board -> [(Coords, Coords)]
-availMoves board@(Board f ms) = let
-                                  fgs = getColoredFigures ms board 
-                                in
-                                  do
-                                    (c, fg) <- fgs
-                                    c' <- figureMoves fg board c
-                                    let b' = doMove c c' board 
-                                    guard $ posIsValid b'
-                                    return (c, c')
+availMoves board = let
+                     ms = getMoveSide board
+                     fgs = getColoredFigures ms board 
+                   in
+                     do
+                       (c, fg) <- fgs
+                       c' <- figureMoves fg board c
+                       let b' = doMove c c' board 
+                       guard $ posIsValid b'
+                       return (c, c')
 
 viewAvailMovesFrom :: Board -> Coords -> IO ()
 viewAvailMovesFrom b c = let
@@ -203,7 +208,7 @@ movesH f (G357 as) = map G357 . helper $ as where
 instance Game Board where
   moves = availMovesBoard                               
   preMoves = prevMovesBoard
-  endLoses = [mateBoard]
+  endLoses = loses --[mateBoard]
   endWins = []
 
 
@@ -276,6 +281,11 @@ longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 mainFunc :: IO ()
 mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
+--mainFunc = print (length loses)
+mainFunc1 = do 
+            print (length loses)
+            printBoard ((reverse loses) !! 0)
+
 
 
 {-
@@ -317,31 +327,36 @@ mateBoard = placeFigure (Just (Fig King Black)) (Coords 0 7)
           . placeFigure (Just (Fig King White)) (Coords 1 5)
           . placeFigure (Just (Fig Knight White)) (Coords 0 5)
           . placeFigure (Just (Fig Bishop White)) (Coords 6 1)
-          $ emptyBoard {getMoveSide = Black}
+          . mapMoveSide (const Black)
+          $ emptyBoard
           
           
 lastBoard = placeFigure (Just (Fig King Black)) (Coords 7 4)
           . placeFigure (Just (Fig King White)) (Coords 7 5)
           . placeFigure (Just (Fig Knight White)) (Coords 7 6)
           . placeFigure (Just (Fig Bishop White)) (Coords 7 7)
-          $ emptyBoard {getMoveSide = Black}
+          . mapMoveSide (const Black)
+          $ emptyBoard
           
           
 
 loses :: [Board]
 loses = do
-         kw <- allFields
-         kb <- nextFields kw
-         let pos =   placeFigure (Just (Fig King White)) kw 
-                   . placeFigure (Just (Fig King Black)) kb
-                     $ emptyBoard {getMoveSide = Black}
+         a <- allFields
+         b <- nextFields a
+         c <- nextFields b
+         d <- nextFields c
+         [f1, f2, f3, f4] <- permutations [Fig King White, Fig King Black, Fig Knight White, Fig Bishop White]
+         let pos =   placeFigure (Just f1) a 
+                   . placeFigure (Just f2) b
+                   . placeFigure (Just f3) c
+                   . placeFigure (Just f4) d
+                   . mapMoveSide (const Black)
+                   $ emptyBoard
+         
          guard $ posIsValid pos
-         b <- nextFields kb
-         let posB = placeFigure (Just (Fig Bishop White)) b pos
-         k <- nextFields b
-         let posKB = placeFigure (Just (Fig Knight White)) k posB
-         guard $ isMate posKB --450020
-         return posKB
+         guard $ isMate pos --450020
+         return pos
 
 
 newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
@@ -349,7 +364,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum) [mateBoard]
+  endLoses = map (BoardInt . fromEnum) loses
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 

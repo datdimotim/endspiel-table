@@ -30,7 +30,9 @@ printBoard :: Board -> IO ()
 printBoard = putStrLn . formatBoard
 
 formatBoard :: Board -> String
-formatBoard (Board b ms) = let
+formatBoard board = let
+                              b = getFields board
+                              ms = getMoveSide board
                               d = do
                                     n <- reverse [0..7]
                                     l <- [0..7]

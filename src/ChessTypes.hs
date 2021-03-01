@@ -1,11 +1,25 @@
 {-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, InstanceSigs, ScopedTypeVariables #-}
 
-module ChessTypes where
+module ChessTypes (
+  FigType(..),
+  Color(..),
+  invColor,
+  Fig(..),
+  Field,
+  Coords(..),
+  Offset(..),
+  Board,
+  mkBoard,
+  getFields,
+  getMoveSide,
+  mapFields,
+  mapMoveSide
+) where
 
 
 import Text.Read hiding (step)
 import Control.Monad
-import Data.List (nub)
+import Data.List (nub, sort)
 import Data.Foldable (toList)
 import Data.Array (Array, Ix, listArray, (!), (//), assocs, accumArray)
 import Data.Maybe (fromMaybe)
@@ -108,14 +122,25 @@ data Offset = Offset { getDLetter :: Int
                      }
 
 
-data Board = Board { getFields   :: [(Coords, Fig)]
-               , getMoveSide :: Color
-               } deriving (Eq, Ord, Show, Read)
-               
+data Board = Board [(Coords, Fig)] Color deriving (Eq, Ord, Show, Read)
 
+mkBoard :: [(Coords, Fig)] -> Color -> Board
+mkBoard f = Board (sort f)
+
+getFields :: Board -> [(Coords, Fig)]
+getFields (Board f c) = f 
+
+getMoveSide :: Board -> Color
+getMoveSide (Board f c) = c
+  
+mapFields :: ([(Coords, Fig)] -> [(Coords, Fig)]) -> Board -> Board
+mapFields f (Board fs c) = mkBoard (f fs) c
+
+mapMoveSide :: (Color -> Color) -> Board -> Board
+mapMoveSide f (Board fs c) = Board fs (f c)
 
 instance Enum Board where
-  toEnum = uncurry Board . toEnum
+  toEnum = uncurry mkBoard . toEnum
   fromEnum (Board fgs ms) = fromEnum (fgs, ms)
 
                   
