@@ -364,7 +364,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum) loses
+  endLoses = map (BoardInt . fromEnum) [mateBoard]
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 

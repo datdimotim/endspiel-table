@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Endspiel (Game (..), Status (..), move, step) where
 
 import Prelude hiding (lookup)
@@ -18,7 +19,7 @@ class (Ord pos, Show pos) => Game pos where
 
   buildTable :: Int -> (Map pos Int, Map pos Int)
   buildTable maxd = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList endLoses)  where
-    wrap = Map.fromList . map (\p -> (p, 0))
+    wrap = Map.fromList . map (, 0)
     helper d w l p | Set.null p || d == maxd    =  (w, l)
                    | otherwise = case step d w l p of (w', l', p') -> helper (d+1) w' l' p'  
 
@@ -28,7 +29,9 @@ step d wins loses ps = let
                           undo1 = undo ps 
                           undo2 = undo undo1
                           wins' = wins `Map.union` fromSet (const d) undo1
-                          newLoses = Set.filter (\p -> all (\v -> Map.member v wins') (moves p)) undo2
+                          newLoses = Set.filter (all (`Map.member` wins') . moves)
+                                      . Set.filter (not . (`Map.member` loses))
+                                     $ undo2
                           loses' = loses `Map.union` fromSet (const (d+1)) newLoses
                          in (wins',loses',newLoses)
 ------------------------------------------------------------------------------------------
