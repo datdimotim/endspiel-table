@@ -221,32 +221,46 @@ buildInteractiveChess = buildTableInteractive
 
 depth: 0  wins: 3  loses: 2  newPos: 1
 depth: 1  wins: 6  loses: 5  newPos: 3
-depth: 2  wins: 42  loses: 26  newPos: 22
-depth: 3  wins: 306  loses: 222  newPos: 199
-depth: 4  wins: 1762  loses: 524  newPos: 329
-depth: 5  wins: 4616  loses: 2363  newPos: 2086
-depth: 6  wins: 12888  loses: 3546  newPos: 1894
-depth: 7  wins: 20156  loses: 7498  newPos: 6897
-depth: 8  wins: 32178  loses: 9988  newPos: 7904
-depth: 9  wins: 41511  loses: 13736  newPos: 13606
-depth: 10  wins: 53351  loses: 16611  newPos: 16208
-depth: 11  wins: 63949  loses: 21760  newPos: 21737
-depth: 12  wins: 82470  loses: 29357  newPos: 29326
-depth: 13  wins: 109524  loses: 44678  newPos: 44677
-depth: 14  wins: 152652  loses: 64462  newPos: 64461
-depth: 15  wins: 203544  loses: 85101  newPos: 85100
-depth: 16  wins: 246205  loses: 99229  newPos: 99228
-depth: 17  wins: 280750  loses: 113470  newPos: 113469
-depth: 18  wins: 311576  loses: 126370  newPos: 126369
-depth: 19  wins: 341170  loses: 140796  newPos: 140795
-depth: 20  wins: 376783  loses: 162691  newPos: 162690
-depth: 21  wins: 429901  loses: 196860  newPos: 196859
-depth: 22  wins: 515517  loses: 255965  newPos: 255964
-depth: 23  wins: 643056  loses: 334511  newPos: 334510
-depth: 24  wins: 789230  loses: 414130  newPos: 414129
-depth: 25  wins: 928570  loses: 492420  newPos: 492419
-depth: 26  wins: 1067225  loses: 579854  newPos: 579853
-depth: 27  wins: 1219068  loses: 682241  newPos: 682240
+depth: 2  wins: 42  loses: 26  newPos: 21
+depth: 3  wins: 306  loses: 222  newPos: 196
+depth: 4  wins: 1762  loses: 524  newPos: 302
+depth: 5  wins: 4616  loses: 2363  newPos: 1839
+depth: 6  wins: 12888  loses: 3546  newPos: 1183
+depth: 7  wins: 20156  loses: 7498  newPos: 3952
+depth: 8  wins: 32178  loses: 9988  newPos: 2490
+depth: 9  wins: 41511  loses: 13736  newPos: 3748
+depth: 10  wins: 53351  loses: 16611  newPos: 2875
+depth: 11  wins: 63949  loses: 21760  newPos: 5149
+depth: 12  wins: 82470  loses: 29357  newPos: 7597
+depth: 13  wins: 109524  loses: 44678  newPos: 15321
+depth: 14  wins: 152652  loses: 64462  newPos: 19784
+depth: 15  wins: 203544  loses: 85101  newPos: 20639
+depth: 16  wins: 246205  loses: 99229  newPos: 14128
+depth: 17  wins: 280750  loses: 113470  newPos: 14241
+depth: 18  wins: 311576  loses: 126370  newPos: 12900
+depth: 19  wins: 341170  loses: 140796  newPos: 14426
+depth: 20  wins: 376783  loses: 162691  newPos: 21895
+depth: 21  wins: 429901  loses: 196860  newPos: 34169
+depth: 22  wins: 515517  loses: 255965  newPos: 59105
+depth: 23  wins: 643056  loses: 334511  newPos: 78546
+depth: 24  wins: 789230  loses: 414130  newPos: 79619
+depth: 25  wins: 928570  loses: 492420  newPos: 78290
+depth: 26  wins: 1067225  loses: 579854  newPos: 87434
+depth: 27  wins: 1219068  loses: 682241  newPos: 102387
+depth: 28  wins: 1393581  loses: 807904  newPos: 125663
+depth: 29  wins: 1607204  loses: 973462  newPos: 165558
+depth: 30  wins: 1866988  loses: 1196496  newPos: 223034
+depth: 31  wins: 2175093  loses: 1480472  newPos: 283976
+depth: 32  wins: 2491337  loses: 1801832  newPos: 321360
+depth: 33  wins: 2767712  loses: 2103083  newPos: 301251
+depth: 34  wins: 2987792  loses: 2351568  newPos: 248485
+depth: 35  wins: 3179164  loses: 2577903  newPos: 226335
+depth: 36  wins: 3369458  loses: 2817569  newPos: 239666
+depth: 37  wins: 3589395  loses: 3104396  newPos: 286827
+depth: 38  wins: 3885168  loses: 3478522  newPos: 374126
+depth: 39  wins: 4260849  loses: 
+Process finished with exit code 130 (interrupted by signal 2: SIGINT)
+
 
 
 -}
