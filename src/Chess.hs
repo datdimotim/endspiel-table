@@ -1,4 +1,4 @@
-{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections #-}
+{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, LambdaCase #-}
 
 module Chess where
 import Endspiel
@@ -6,18 +6,23 @@ import Repl
 import ChessTypes
 import ChessPrint
 
-import Text.Read hiding (step)
+import Text.Read ()
 import Control.Monad
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Maybe (runMaybeT)
+import Control.Monad.ST
 import Data.Monoid
-import Data.Maybe (fromMaybe, listToMaybe, isNothing)
+import Data.Maybe (fromMaybe, listToMaybe, isNothing, isJust)
 import Data.List (nub, sort, permutations)
 import qualified Data.Map.Strict as M (Map, toList)
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import Data.Foldable (toList, find)
+import Data.Foldable (toList, find, traverse_)
 import Data.Array (Array, Ix, listArray, (!), (//), assocs)
-import qualified Data.HashTable.IO as H
-type HashTable k v = H.BasicHashTable k v
+import qualified Data.HashTable.ST.Basic as H
+import Data.Hashable
+import qualified Data.HashTable.Class as HT
+type HashTable s k v = H.HashTable s k v
 
 --play357 = play $ G357 [5,5,5]
 
@@ -125,13 +130,13 @@ findFigExactOne b f = case findFig b f of
 posIsValid :: Board -> Bool
 posIsValid board = let
                      ms = getMoveSide board
-                     findKing c = findFigExactOne board (Fig King c)         
+                     findKing c = findFigExactOne board (Fig King c)
                    in
                      fromMaybe False $ do
                        c <- findKing (invColor ms)
                        findKing ms
                        return $ not (isBeatField board ms c)
-                
+
 
 
 getColoredFigures :: Color -> Board -> [(Coords, Fig)]
@@ -157,25 +162,25 @@ availMovesBoard b = map (\(c, c') -> doMove c c' b) (availMoves b)
 prevMovesBoard :: Board -> [Board]
 prevMovesBoard board = let
                          ms = getMoveSide board
-                         fgs = getColoredFigures (invColor ms) board 
+                         fgs = getColoredFigures (invColor ms) board
                        in
                          do
                            (c, fg) <- fgs
                            c' <- figureMoves fg board c
                            guard $ isEmptyField board c'
-                           let b' = doMove c c' board 
+                           let b' = doMove c c' board
                            guard $ posIsValid b'
                            return b'
 
 availMoves :: Board -> [(Coords, Coords)]
 availMoves board = let
                      ms = getMoveSide board
-                     fgs = getColoredFigures ms board 
+                     fgs = getColoredFigures ms board
                    in
                      do
                        (c, fg) <- fgs
                        c' <- figureMoves fg board c
-                       let b' = doMove c c' board 
+                       let b' = doMove c c' board
                        guard $ posIsValid b'
                        return (c, c')
 
@@ -258,7 +263,7 @@ depth: 35  wins: 3179164  loses: 2577903  newPos: 226335
 depth: 36  wins: 3369458  loses: 2817569  newPos: 239666
 depth: 37  wins: 3589395  loses: 3104396  newPos: 286827
 depth: 38  wins: 3885168  loses: 3478522  newPos: 374126
-depth: 39  wins: 4260849  loses: 
+depth: 39  wins: 4260849  loses:
 Process finished with exit code 130 (interrupted by signal 2: SIGINT)
 
 
@@ -276,17 +281,78 @@ buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList en
                          putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')  
                          helper (d+1) w' l' p'
 
-{-
-stepM :: Game pos => Int -> HashTable pos Int -> HashTable pos Int -> Set pos -> (Map pos Int, Map pos Int, Set pos)
-stepM d wins loses ps = let
-                          undo  = Set.fromList . concatMap preMoves . Set.toList
-                          undo1 = undo ps
-                          undo2 = undo undo1
-                          wins' = wins `Map.union` fromSet (const d) undo1
-                          newLoses = Set.filter (\p -> all (\v -> Map.member v wins') (moves p)) undo2
-                          loses' = loses `Map.union` fromSet (const (d+1)) newLoses
-                         in (wins',loses',newLoses)
--}
+
+
+buildTableInteractiveM :: (Game pos, Hashable pos) => ST s (HashTable s pos Int, HashTable s pos Int)
+buildTableInteractiveM = let 
+                          helper d w l p = if null p 
+                                           then return (w, l)
+                                           else
+                                             do
+                                               p' <- stepM d w l p
+                                               --putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')  
+                                               helper (d+1) w l p'
+                        in
+                          do
+                            wins <- H.new
+                            traverse_ (\w -> H.insert wins w 0)  endWins
+                            loses <- H.new
+                            traverse_ (\w -> H.insert loses w 0)  endLoses
+                            ps <- H.new
+                            traverse_ (\w -> H.insert ps w ())  endLoses
+                            psl <- map fst <$> HT.toList ps
+                            helper 0 wins loses psl
+                            return (wins, loses)
+
+undo :: (Game pos, Hashable pos) => HashTable s pos () -> ST s (HashTable s pos ())
+undo setPos = do
+                newSet <- H.new
+                H.mapM_ (\(p, _) -> forM_ (preMoves p) (\p' -> H.insert newSet p' ())) setPos
+                return newSet
+
+
+
+addIfEmpty :: (Hashable k, Eq k) => HashTable s k v -> k -> v -> ST s ()
+addIfEmpty ht k v = H.mutate ht k $ \case
+                                    Nothing -> (Just v, ())
+                                    Just old -> (Just old, ())
+                                    
+isPresent :: (Hashable k, Eq k) => HashTable s k v -> k -> ST s Bool
+isPresent ht k = isJust <$> H.lookup ht k 
+                                                    
+
+stepM :: (Game pos, Hashable pos) => Int -> HashTable s pos Int -> HashTable s pos Int -> [pos] -> ST s [pos]
+stepM d wins loses ps = do
+                          psT <- HT.fromList $ map (,()) ps
+                          undo1 <- undo psT
+                          undo2 <- undo undo1
+                          flip H.mapM_ undo1 $ \(k, _) -> do {
+                               addIfEmpty wins k d 
+                          }
+                          
+                          newLoses <- H.new
+                          flip H.mapM_ undo2 $ \(k, v) -> runMaybeT $ do {
+                               present <- lift $ isJust <$> H.lookup loses k;
+                               guard $ not present;
+                               isAllWins <- lift $ and <$> traverse (isPresent wins) (moves k);
+                               guard isAllWins;
+                               lift $ H.insert newLoses k ();
+                          }                        
+                          
+                          flip H.mapM_ newLoses $ \(k, _) -> do {
+                               addIfEmpty loses k (d+1) 
+                          }
+                          
+                          map fst <$> HT.toList newLoses
+                          --wins' = wins `Map.union` fromSet (const d) undo1
+                          
+                              
+                          --newLoses = Set.filter (all (`Map.member` wins') . moves)
+                            --                                    . Set.filter (not . (`Map.member` loses))
+                            --                                   $ undo2
+                          --loses' = loses `Map.union` fromSet (const (d+1)) newLoses
+                         --in (wins',loses',newLoses)
+
 
 depth = 16
 table = buildTable depth :: (M.Map Board Int, M.Map Board Int)
@@ -296,7 +362,7 @@ longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 mainFunc :: IO ()
 mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
 --mainFunc = print (length loses)
-mainFunc1 = do 
+mainFunc1 = do
             print (length loses)
             printBoard ((reverse loses) !! 0)
 
@@ -361,13 +427,13 @@ loses = do
          c <- nextFields b
          d <- nextFields c
          [f1, f2, f3, f4] <- permutations [Fig King White, Fig King Black, Fig Knight White, Fig Bishop White]
-         let pos =   placeFigure (Just f1) a 
+         let pos =   placeFigure (Just f1) a
                    . placeFigure (Just f2) b
                    . placeFigure (Just f3) c
                    . placeFigure (Just f4) d
                    . mapMoveSide (const Black)
                    $ emptyBoard
-         
+
          guard $ posIsValid pos
          guard $ isMate pos --450020
          return pos
@@ -378,7 +444,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum) [mateBoard]
+  endLoses = map (BoardInt . fromEnum) loses
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 
