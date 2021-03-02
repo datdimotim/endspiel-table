@@ -19,10 +19,10 @@ import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import Data.Foldable (toList, find, traverse_)
 import Data.Array (Array, Ix, listArray, (!), (//), assocs)
-import qualified Data.HashTable.ST.Basic as H
+import qualified Data.HashTable.IO as H
 import Data.Hashable
-import qualified Data.HashTable.Class as HT
-type HashTable s k v = H.HashTable s k v
+import qualified Data.HashTable.IO as HT
+type HashTable k v = H.BasicHashTable k v
 
 --play357 = play $ G357 [5,5,5]
 
@@ -217,9 +217,14 @@ instance Game Board where
   endWins = []
 
 
+instance Hashable BoardInt where
+  hashWithSalt i (BoardInt n) = hashWithSalt i n
 
 buildInteractiveChess :: IO (Map.Map BoardInt Int, Map.Map BoardInt Int)
 buildInteractiveChess = buildTableInteractive
+
+buildInteractiveChessM :: IO (HashTable BoardInt Int, HashTable BoardInt Int)
+buildInteractiveChessM = buildTableInteractiveM
 
 
 {-
@@ -273,24 +278,26 @@ Process finished with exit code 130 (interrupted by signal 2: SIGINT)
 buildTableInteractive :: Game pos => IO (Map.Map pos Int, Map.Map pos Int)
 buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList endLoses)  where
     wrap = Map.fromList . map (, 0)
-    helper d w l p = if null p 
+    helper d w l p = if null p
                      then return (w, l)
                      else
                        do
                          let (w', l', p') = step d w l p
-                         putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')  
+                         putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')
                          helper (d+1) w' l' p'
 
 
 
-buildTableInteractiveM :: (Game pos, Hashable pos) => ST s (HashTable s pos Int, HashTable s pos Int)
-buildTableInteractiveM = let 
-                          helper d w l p = if null p 
+buildTableInteractiveM :: (Game pos, Hashable pos) => IO (HashTable pos Int, HashTable pos Int)
+buildTableInteractiveM = let
+                          helper d w l p = if null p
                                            then return (w, l)
                                            else
                                              do
                                                p' <- stepM d w l p
-                                               --putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')  
+                                               w' <- H.toList w
+                                               l' <- H.toList l
+                                               putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')
                                                helper (d+1) w l p'
                         in
                           do
@@ -298,13 +305,13 @@ buildTableInteractiveM = let
                             traverse_ (\w -> H.insert wins w 0)  endWins
                             loses <- H.new
                             traverse_ (\w -> H.insert loses w 0)  endLoses
-                            ps <- H.new
+                            ps <- (H.new :: IO (HashTable pos ()))
                             traverse_ (\w -> H.insert ps w ())  endLoses
                             psl <- map fst <$> HT.toList ps
                             helper 0 wins loses psl
                             return (wins, loses)
 
-undo :: (Game pos, Hashable pos) => HashTable s pos () -> ST s (HashTable s pos ())
+undo :: (Game pos, Hashable pos) => HashTable pos () -> IO (HashTable pos ())
 undo setPos = do
                 newSet <- H.new
                 H.mapM_ (\(p, _) -> forM_ (preMoves p) (\p' -> H.insert newSet p' ())) setPos
@@ -312,41 +319,41 @@ undo setPos = do
 
 
 
-addIfEmpty :: (Hashable k, Eq k) => HashTable s k v -> k -> v -> ST s ()
+addIfEmpty :: (Hashable k, Eq k) => HashTable k v -> k -> v -> IO ()
 addIfEmpty ht k v = H.mutate ht k $ \case
                                     Nothing -> (Just v, ())
                                     Just old -> (Just old, ())
-                                    
-isPresent :: (Hashable k, Eq k) => HashTable s k v -> k -> ST s Bool
-isPresent ht k = isJust <$> H.lookup ht k 
-                                                    
 
-stepM :: (Game pos, Hashable pos) => Int -> HashTable s pos Int -> HashTable s pos Int -> [pos] -> ST s [pos]
+isPresent :: (Hashable k, Eq k) => HashTable k v -> k -> IO Bool
+isPresent ht k = isJust <$> H.lookup ht k
+
+
+stepM :: (Game pos, Hashable pos) => Int -> HashTable pos Int -> HashTable pos Int -> [pos] -> IO [pos]
 stepM d wins loses ps = do
                           psT <- HT.fromList $ map (,()) ps
                           undo1 <- undo psT
                           undo2 <- undo undo1
                           flip H.mapM_ undo1 $ \(k, _) -> do {
-                               addIfEmpty wins k d 
+                               addIfEmpty wins k d
                           }
-                          
-                          newLoses <- H.new
+
+                          newLoses <- (H.new :: IO (HashTable pos ()))
                           flip H.mapM_ undo2 $ \(k, v) -> runMaybeT $ do {
                                present <- lift $ isJust <$> H.lookup loses k;
                                guard $ not present;
                                isAllWins <- lift $ and <$> traverse (isPresent wins) (moves k);
                                guard isAllWins;
                                lift $ H.insert newLoses k ();
-                          }                        
-                          
-                          flip H.mapM_ newLoses $ \(k, _) -> do {
-                               addIfEmpty loses k (d+1) 
                           }
-                          
+
+                          flip H.mapM_ newLoses $ \(k, _) -> do {
+                               addIfEmpty loses k (d+1)
+                          }
+
                           map fst <$> HT.toList newLoses
                           --wins' = wins `Map.union` fromSet (const d) undo1
-                          
-                              
+
+
                           --newLoses = Set.filter (all (`Map.member` wins') . moves)
                             --                                    . Set.filter (not . (`Map.member` loses))
                             --                                   $ undo2
@@ -360,7 +367,7 @@ longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 
 mainFunc :: IO ()
-mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
+mainFunc = void buildInteractiveChessM --printBoard . fst $ (longestLoses !! 0)
 --mainFunc = print (length loses)
 mainFunc1 = do
             print (length loses)
