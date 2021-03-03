@@ -278,7 +278,7 @@ Process finished with exit code 130 (interrupted by signal 2: SIGINT)
 buildTableInteractive :: Game pos => IO (Map.Map pos Int, Map.Map pos Int)
 buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (Set.fromList endLoses)  where
     wrap = Map.fromList . map (, 0)
-    helper d w l p = if null p
+    helper d w l p = if null p || d == 15
                      then return (w, l)
                      else
                        do
@@ -367,7 +367,7 @@ longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 
 mainFunc :: IO ()
-mainFunc = void buildInteractiveChessM --printBoard . fst $ (longestLoses !! 0)
+mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
 --mainFunc = print (length loses)
 mainFunc1 = do
             print (length loses)
@@ -451,7 +451,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum) loses
+  endLoses = map (BoardInt . fromEnum) [mateBoard]--loses
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 

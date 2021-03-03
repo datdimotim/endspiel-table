@@ -26,12 +26,10 @@ class (Ord pos, Show pos) => Game pos where
 step :: Game pos => Int -> Map pos Int -> Map pos Int -> Set pos -> (Map pos Int, Map pos Int, Set pos)
 step d wins loses ps = let
                           undo  = Set.fromList . concatMap preMoves . Set.toList  
-                          undo1 = undo ps 
-                          undo2 = undo undo1
+                          undo1 = Set.filter (not . (`Map.member` wins))  (undo ps) 
+                          undo2 = Set.filter (not . (`Map.member` loses)) (undo undo1)
                           wins' = wins `Map.union` fromSet (const d) undo1
-                          newLoses = Set.filter (all (`Map.member` wins') . moves)
-                                      . Set.filter (not . (`Map.member` loses))
-                                     $ undo2
+                          newLoses = Set.filter (all (`Map.member` wins') . moves) undo2
                           loses' = loses `Map.union` fromSet (const (d+1)) newLoses
                          in (wins',loses',newLoses)
 ------------------------------------------------------------------------------------------
