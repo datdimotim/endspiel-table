@@ -1,4 +1,4 @@
-{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, InstanceSigs, ScopedTypeVariables, BangPatterns #-}
+{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, InstanceSigs, ScopedTypeVariables, BangPatterns, DeriveGeneric #-}
 
 module ChessTypes (
   FigType(..),
@@ -25,11 +25,14 @@ import Data.Array (Array, Ix, listArray, (!), (//), assocs, accumArray)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..), getSum, Endo(..), appEndo)
 
+import GHC.Generics
+import Control.DeepSeq
 
 
-data FigType = Pawn | Knight | Bishop | Rook | Queen | King deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
-data Color = White | Black deriving (Eq, Ord, Show, Read, Enum, Bounded)
+data FigType = Pawn | Knight | Bishop | Rook | Queen | King deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
+
+data Color = White | Black deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 invColor :: Color -> Color
 invColor White = Black
@@ -37,14 +40,17 @@ invColor Black = White
 
 data Fig = Fig { getFigType :: !FigType 
                , getColor :: !Color
-               } deriving (Eq, Ord, Show, Read)
+               } deriving (Eq, Ord, Show, Read, Generic)
                
 type Field = Maybe Fig
 data Coords = Coords { getLetter :: !Int
                      , getNumber  :: !Int
-                     } deriving (Show, Eq, Ord, Ix, Read)
+                     } deriving (Show, Eq, Ord, Ix, Read, Generic)
                      
-                     
+instance NFData Coords where         
+instance NFData Fig where
+instance NFData FigType where   
+instance NFData Color where   
 
 instance Enum Fig where
   toEnum = uncurry Fig . toEnum 
@@ -125,7 +131,10 @@ data Offset = Offset { getDLetter :: Int
 data Board = Board [(Coords, Fig)] Color deriving (Eq, Ord, Show, Read)
 
 mkBoard :: [(Coords, Fig)] -> Color -> Board
-mkBoard f = Board (sort f)
+mkBoard f !mc = let 
+                  fgs = sort f
+                in 
+                  Board fgs mc
 
 getFields :: Board -> [(Coords, Fig)]
 getFields (Board f c) = f

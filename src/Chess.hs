@@ -20,6 +20,8 @@ import Data.Foldable (toList, find, traverse_)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 
+import qualified Data.IntMap.Strict as IM
+import Data.IntMap.Strict (IntMap)
 import qualified Data.Set as S
 
 import Data.Array (Array, Ix, listArray, (!), (//), assocs)
@@ -61,7 +63,7 @@ buildInteractiveChessM = buildTableInteractiveM
 buildTableInteractive :: Game pos => IO (Map pos Int, Map pos Int)
 buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (S.fromList endLoses)  where
     wrap = M.fromList . map (, 0)
-    helper d w l p = if null p || d == 150
+    helper d w l p = if null p || d == 15
                      then return (w, l)
                      else
                        do
@@ -144,12 +146,15 @@ longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 mainFunc :: IO ()
 mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
+
+--mainFunc = print . map (length . snd) . IM.assocs $ availMovesM  
+
 --mainFunc = print (length loses)
-mainFunc1 = do
+mainFunc11 = do
             print (length loses)
             printBoard ((reverse loses) !! 0)
             
-mainFunc3 = let
+mainFunc2 = let
              st = BoardInt $ fromEnum mateBoard
              ps = return st >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves
            in
@@ -192,25 +197,29 @@ lastBoard = placeFigure (Just (Fig King Black)) (Coords 7 4)
           . mapMoveSide (const Black)
           $ emptyBoard
           
-          
-
-loses :: [Board]
-loses = do
+allPositions :: [Board]
+allPositions = do
          a <- allFields
          b <- nextFields a
          c <- nextFields b
          d <- nextFields c
          [f1, f2, f3, f4] <- permutations [Fig King White, Fig King Black, Fig Knight White, Fig Bishop White]
+         moveSide <- [Black, White]
          let pos =   placeFigure (Just f1) a
                    . placeFigure (Just f2) b
                    . placeFigure (Just f3) c
                    . placeFigure (Just f4) d
-                   . mapMoveSide (const Black)
+                   . mapMoveSide (const moveSide)
                    $ emptyBoard
 
          guard $ posIsValid pos
-         guard $ isMate pos --450020
          return pos
+
+loses :: [Board]
+loses = filter (\b -> getMoveSide b == Black && isMate b) allPositions
+
+availMovesM :: IntMap [BoardInt]
+availMovesM = IM.fromList $ map (\b -> (fromEnum b, map (BoardInt . fromEnum) (availMovesBoard b))) allPositions
 
 
 newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
@@ -218,7 +227,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum)  loses --[mateBoard]--loses
+  endLoses = map (BoardInt . fromEnum)  [mateBoard]--loses
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 
