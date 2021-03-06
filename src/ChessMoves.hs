@@ -1,3 +1,5 @@
+{-# Language BangPatterns #-}
+
 module ChessMoves where
 
 import Control.Monad (guard)

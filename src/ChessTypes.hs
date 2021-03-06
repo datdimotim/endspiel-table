@@ -1,4 +1,4 @@
-{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, InstanceSigs, ScopedTypeVariables #-}
+{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, InstanceSigs, ScopedTypeVariables, BangPatterns #-}
 
 module ChessTypes (
   FigType(..),
@@ -20,7 +20,7 @@ module ChessTypes (
 import Text.Read hiding (step)
 import Control.Monad
 import Data.List (nub, sort)
-import Data.Foldable (toList)
+import Data.Foldable (toList, foldl')
 import Data.Array (Array, Ix, listArray, (!), (//), assocs, accumArray)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..), getSum, Endo(..), appEndo)
@@ -35,13 +35,13 @@ invColor :: Color -> Color
 invColor White = Black
 invColor Black = White
 
-data Fig = Fig { getFigType :: FigType 
-               , getColor :: Color
+data Fig = Fig { getFigType :: !FigType 
+               , getColor :: !Color
                } deriving (Eq, Ord, Show, Read)
                
 type Field = Maybe Fig
-data Coords = Coords { getLetter :: Int
-                     , getNumber  :: Int
+data Coords = Coords { getLetter :: !Int
+                     , getNumber  :: !Int
                      } deriving (Show, Eq, Ord, Ix, Read)
                      
                      
@@ -128,11 +128,11 @@ mkBoard :: [(Coords, Fig)] -> Color -> Board
 mkBoard f = Board (sort f)
 
 getFields :: Board -> [(Coords, Fig)]
-getFields (Board f c) = f 
+getFields (Board f c) = f
 
 getMoveSide :: Board -> Color
 getMoveSide (Board f c) = c
-  
+
 mapFields :: ([(Coords, Fig)] -> [(Coords, Fig)]) -> Board -> Board
 mapFields f (Board fs c) = mkBoard (f fs) c
 

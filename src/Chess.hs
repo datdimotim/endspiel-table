@@ -1,4 +1,4 @@
-{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, LambdaCase #-}
+{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, LambdaCase, BangPatterns #-}
 
 module Chess where
 import Endspiel
@@ -61,7 +61,7 @@ buildInteractiveChessM = buildTableInteractiveM
 buildTableInteractive :: Game pos => IO (Map pos Int, Map pos Int)
 buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (S.fromList endLoses)  where
     wrap = M.fromList . map (, 0)
-    helper d w l p = if null p || d == 15
+    helper d w l p = if null p || d == 150
                      then return (w, l)
                      else
                        do
@@ -148,6 +148,12 @@ mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
 mainFunc1 = do
             print (length loses)
             printBoard ((reverse loses) !! 0)
+            
+mainFunc3 = let
+             st = BoardInt $ fromEnum mateBoard
+             ps = return st >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves >>= preMoves
+           in
+             print $ length (ps :: [BoardInt])
 
 viewMarks :: Board -> [Coords] -> Fig -> IO ()
 viewMarks b cs f = let
@@ -212,7 +218,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum) [mateBoard]--loses
+  endLoses = map (BoardInt . fromEnum)  loses --[mateBoard]--loses
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 

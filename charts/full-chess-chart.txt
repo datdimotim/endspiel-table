@@ -1,0 +1,36 @@
+depth: 0  wins: 1840  loses: 776  newPos: 312
+depth: 1  wins: 3040  loses: 1072  newPos: 296
+depth: 2  wins: 6256  loses: 2864  newPos: 1792
+depth: 3  wins: 22216  loses: 10928  newPos: 8064
+depth: 4  wins: 61968  loses: 22112  newPos: 11184
+depth: 5  wins: 107160  loses: 37256  newPos: 15144
+depth: 6  wins: 155556  loses: 49116  newPos: 11860
+depth: 7  wins: 195964  loses: 63704  newPos: 14588
+depth: 8  wins: 238684  loses: 77640  newPos: 13936
+depth: 9  wins: 294924  loses: 102608  newPos: 24968
+depth: 10  wins: 390132  loses: 151932  newPos: 49324
+depth: 11  wins: 532216  loses: 220452  newPos: 68520
+depth: 12  wins: 721808  loses: 305304  newPos: 84852
+depth: 13  wins: 912104  loses: 368228  newPos: 62924
+depth: 14  wins: 1051788  loses: 418140  newPos: 49912
+depth: 15  wins: 1169792  loses: 473452  newPos: 55312
+depth: 16  wins: 1283992  loses: 528156  newPos: 54704
+depth: 17  wins: 1403772  loses: 582124  newPos: 53968
+depth: 18  wins: 1531252  loses: 660948  newPos: 78824
+depth: 19  wins: 1747804  loses: 803712  newPos: 142764
+depth: 20  wins: 2097940  loses: 1040016  newPos: 236304
+depth: 21  wins: 2582808  loses: 1378040  newPos: 338024
+depth: 22  wins: 3159640  loses: 1741440  newPos: 363400
+depth: 23  wins: 3744096  loses: 2215208  newPos: 473768
+depth: 24  wins: 4473136  loses: 2866876  newPos: 651668
+depth: 25  wins: 5422944  loses: 3864676  newPos: 997800
+depth: 26  wins: 6701328  loses: 5218500  newPos: 1353824
+depth: 27  wins: 8232828  loses: 7033948  newPos: 1815448
+depth: 28  wins: 9667096  loses: 9061456  newPos: 2027508
+depth: 29  wins: 10526496  loses: 10546396  newPos: 1484940
+depth: 30  wins: 10787500  loses: 11099784  newPos: 553388
+depth: 31  wins: 10821080  loses: 11185208  newPos: 85424
+depth: 32  wins: 10822184  loses: 11188168  newPos: 2960
+depth: 33  wins: 10822184  loses: 11188168  newPos: 0
+
+Process finished with exit code 0
