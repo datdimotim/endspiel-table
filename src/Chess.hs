@@ -179,7 +179,7 @@ allFields :: [Coords]
 allFields = [minBound .. maxBound]
 
 nextFields :: Coords -> [Coords]            
-nextFields c = [c .. maxBound] 
+nextFields c = [succ c .. maxBound] 
 
 
 mateBoard = placeFigure (Just (Fig King Black)) (Coords 0 7)
