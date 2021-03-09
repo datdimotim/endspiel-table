@@ -1,11 +1,15 @@
 {-# LANGUAGE TupleSections, BangPatterns #-}
-module Endspiel (Game (..), Status (..), move, step) where
+module Endspiel (Game (..), Status (..), move, step, stepInt) where
 
 import Prelude hiding (lookup)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IM
 import Data.Set  (Set)
 import qualified Data.Set as S
+import Data.IntSet  (IntSet)
+import qualified Data.IntSet as IS
 import Data.Foldable
 import Data.Ord
 
@@ -31,6 +35,26 @@ step d wins loses ps = let
                          wins' = wins `M.union` M.fromSet (const d) undo1
                          newLoses = S.filter (all (`M.member` wins') . moves) undo2
                          loses' = loses `M.union` M.fromSet (const (d+1)) newLoses
+                       in 
+                         (wins',loses',newLoses)
+
+buildTableInt :: Int -> [Int] -> [Int] -> (Int -> [Int]) -> (Int -> [Int]) -> (IntMap Int, IntMap Int)
+buildTableInt maxd endWins endLoses moves preMoves = helper 0 (wrap endWins) (wrap endLoses) (wrap endLoses)  where
+    wrap = IM.fromList . map (, 0)
+    helper d w l p | IM.null p || d == maxd    =  (w, l)
+                   | otherwise = case stepInt moves preMoves d w l p of (w', l', p') -> helper (d+1) w' l' p'
+                   
+                   
+                   
+                         
+stepInt :: (Int -> [Int]) -> (Int -> [Int]) -> Int -> IntMap Int -> IntMap Int -> IntMap Int -> (IntMap Int, IntMap Int, IntMap Int)
+stepInt moves preMoves d wins loses ps = let
+                         undo dp = IM.fromList . concatMap (map (, dp) . preMoves . fst) . IM.assocs
+                         undo1 = IM.filterWithKey (\k v -> not (k `IM.member` wins))  (undo d ps)
+                         undo2 = IM.filterWithKey (\k v -> not (k `IM.member` loses)) (undo (d+1) undo1)
+                         wins' = wins `IM.union`  undo1
+                         newLoses = IM.filterWithKey (\k v -> all (`IM.member` wins') (moves k)) undo2
+                         loses' = loses `IM.union` newLoses
                        in 
                          (wins',loses',newLoses)
 ------------------------------------------------------------------------------------------

@@ -63,11 +63,32 @@ buildInteractiveChessM = buildTableInteractiveM
 buildTableInteractive :: Game pos => IO (Map pos Int, Map pos Int)
 buildTableInteractive = helper 0 (wrap endWins) (wrap endLoses) (S.fromList endLoses)  where
     wrap = M.fromList . map (, 0)
-    helper d w l p = if null p || d == 15
+    helper d w l p = if null p || d == 150
                      then return (w, l)
                      else
                        do
                          let (w', l', p') = step d w l p
+                         putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')
+                         helper (d+1) w' l' p'
+
+buildInteractiveChessInt :: IO (IntMap Int, IntMap Int)
+buildInteractiveChessInt = let
+                             l = map getBoardInt (endLoses::[BoardInt])
+                             w = map getBoardInt (endWins::[BoardInt])
+                             mvs = map getBoardInt . (moves::BoardInt -> [BoardInt]) . BoardInt
+                             pre = map getBoardInt . (preMoves::BoardInt -> [BoardInt]) . BoardInt
+                           in 
+                             buildTableInteractiveInt w l mvs pre
+                         
+                         
+buildTableInteractiveInt :: [Int] -> [Int] -> (Int -> [Int]) -> (Int -> [Int]) -> IO (IntMap Int, IntMap Int)
+buildTableInteractiveInt endWins endLoses moves preMoves = helper 0 (wrap endWins) (wrap endLoses) (wrap endLoses)  where
+    wrap = IM.fromList . map (, 0)
+    helper d w l p = if IM.null p || d == 15
+                     then return (w, l)
+                     else
+                       do
+                         let (w', l', p') = stepInt moves preMoves d w l p
                          putStrLn $ "depth: " ++ show d ++ "  wins: " ++ show (length w') ++ "  loses: " ++ show (length l')  ++ "  newPos: " ++ show (length p')
                          helper (d+1) w' l' p'
 
@@ -145,7 +166,7 @@ longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 
 mainFunc :: IO ()
-mainFunc = void buildInteractiveChess --printBoard . fst $ (longestLoses !! 0)
+mainFunc = void buildInteractiveChessInt --printBoard . fst $ (longestLoses !! 0)
 
 --mainFunc = print . map (length . snd) . IM.assocs $ availMovesM  
 
@@ -179,7 +200,7 @@ allFields :: [Coords]
 allFields = [minBound .. maxBound]
 
 nextFields :: Coords -> [Coords]            
-nextFields c = [succ c .. maxBound] 
+nextFields c = [succ c .. maxBound]
 
 
 mateBoard = placeFigure (Just (Fig King Black)) (Coords 0 7)
