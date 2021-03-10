@@ -13,6 +13,7 @@ import qualified Data.IntSet as IS
 import Data.Foldable
 import Data.Ord
 
+import Control.Parallel.Strategies (parMap, rdeepseq)
 
 ------------------------------ Game typeclass -------------------------------------------
 class (Ord pos, Show pos) => Game pos where
@@ -44,19 +45,23 @@ buildTableInt maxd endWins endLoses moves preMoves = helper 0 (wrap endWins) (wr
     helper d w l p | IM.null p || d == maxd    =  (w, l)
                    | otherwise = case stepInt moves preMoves d w l p of (w', l', p') -> helper (d+1) w' l' p'
                    
-                   
-                   
+               
                          
 stepInt :: (Int -> [Int]) -> (Int -> [Int]) -> Int -> IntMap Int -> IntMap Int -> IntMap Int -> (IntMap Int, IntMap Int, IntMap Int)
 stepInt moves preMoves d wins loses ps = let
                          undo dp = IM.fromList . concatMap (map (, dp) . preMoves . fst) . IM.assocs
-                         undo1 = IM.filterWithKey (\k v -> not (k `IM.member` wins))  (undo d ps)
-                         undo2 = IM.filterWithKey (\k v -> not (k `IM.member` loses)) (undo (d+1) undo1)
-                         wins' = wins `IM.union`  undo1
-                         newLoses = IM.filterWithKey (\k v -> all (`IM.member` wins') (moves k)) undo2
+                         newWinsF subPart = IM.filterWithKey (\k _ -> not (k `IM.member` wins))  (undo d subPart) 
+                         newLosesF subPart = IM.filterWithKey (\k _ -> not (k `IM.member` loses) && all (`IM.member` wins') (moves k)) (undo (d+1) subPart)
+                         
+                         split m = concatMap IM.splitRoot . IM.splitRoot $ m
+                         newWins = foldl' IM.union IM.empty  (parMap rdeepseq newWinsF $ split ps) 
+                         newLoses = foldl' IM.union IM.empty (parMap rdeepseq newLosesF $ split newWins)
+                         
+                         wins' = wins `IM.union`  newWins
                          loses' = loses `IM.union` newLoses
                        in 
                          (wins',loses',newLoses)
+                         
 ------------------------------------------------------------------------------------------
 
 ------------------------------ Move engine -----------------------------------------------
