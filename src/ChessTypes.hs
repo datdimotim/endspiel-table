@@ -71,19 +71,14 @@ instance (Enum a, Bounded b, Enum b) => Enum (a, b) where
                      fromEnum a * max + fromEnum b
                                               
 
-
-pow :: Int -> Int -> Int
-pow a 0 = 1
-pow a n = a * pow a (n-1)
-
 instance (Bounded a, Enum a) => Enum [a] where
   toEnum :: forall  a . (Bounded a, Enum a) => Int -> [a]
   toEnum 0 = []
   toEnum n = let
                max = 1 + fromEnum (maxBound :: a)
                (len, rem) = let
-                              l n a | pow max a > n = (a, n)
-                                    | otherwise     = l (n - pow max a) (a+1)
+                              l n a | max ^ a > n = (a, n)
+                                    | otherwise     = l (n - (max ^ a)) (a+1)
                             in
                               l n 0
                        
@@ -101,7 +96,7 @@ instance (Bounded a, Enum a) => Enum [a] where
   fromEnum :: forall  a . (Bounded a, Enum a) => [a] -> Int
   fromEnum l = let
                max = 1 + fromEnum (maxBound :: a)
-               offset = getSum $ foldMap (Sum . pow max) [0 .. length l - 1]
+               offset = getSum $ foldMap (Sum . (^) max) [0 .. length l - 1]
                ff :: Int -> Int -> Int
                ff e = \a -> a * max + fromEnum e
                ind = ($ 0) . appEndo . foldMap (Endo . ff . fromEnum) $ reverse l
@@ -128,13 +123,10 @@ data Offset = Offset { getDLetter :: Int
                      }
 
 
-data Board = Board [(Coords, Fig)] Color deriving (Eq, Ord, Show, Read)
+data Board = Board [(Coords, Fig)] Color
 
 mkBoard :: [(Coords, Fig)] -> Color -> Board
-mkBoard f !mc = let 
-                  fgs = sort f
-                in 
-                  Board fgs mc
+mkBoard f !mc = Board f mc
 
 getFields :: Board -> [(Coords, Fig)]
 getFields (Board f c) = f
@@ -150,6 +142,6 @@ mapMoveSide f (Board fs c) = Board fs (f c)
 
 instance Enum Board where
   toEnum = uncurry mkBoard . toEnum
-  fromEnum (Board fgs ms) = fromEnum (fgs, ms)
+  fromEnum (Board fgs ms) = fromEnum (sort fgs, ms)
 
                   

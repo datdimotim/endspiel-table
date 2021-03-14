@@ -1,4 +1,4 @@
-{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, LambdaCase, BangPatterns #-}
+{-# Language MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, TupleSections, LambdaCase, BangPatterns, OverloadedStrings #-}
 
 module Chess where
 import Endspiel
@@ -15,7 +15,7 @@ import Control.Monad.ST
 import Data.Monoid
 import Data.Maybe (fromMaybe, listToMaybe, isNothing, isJust)
 import Data.List (nub, sort, permutations)
-import Data.Foldable (toList, find, traverse_)
+import Data.Foldable (toList, find, traverse_, foldl')
 
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
@@ -27,6 +27,10 @@ import qualified Data.Set as S
 import Data.Array (Array, Ix, listArray, (!), (//), assocs)
 
 import Criterion.Main
+
+import qualified Data.Text.IO as T
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.UTF8 as BSU
 
 import qualified Data.HashTable.IO as H
 import Data.Hashable
@@ -45,11 +49,6 @@ tstBoard =   placeFigure (Just (Fig King White)) (Coords 3 3)
            . placeFigure (Just (Fig Knight White)) (Coords 6 2) 
            $ emptyBoard
 
-instance Game Board where
-  moves = availMovesBoard                               
-  preMoves = prevMovesBoard
-  endLoses = loses --[mateBoard]
-  endWins = []
 
 
 instance Hashable BoardInt where
@@ -85,7 +84,7 @@ buildInteractiveChessInt = let
 buildTableInteractiveInt :: [Int] -> [Int] -> (Int -> [Int]) -> (Int -> [Int]) -> IO (IntMap Int, IntMap Int)
 buildTableInteractiveInt endWins endLoses moves preMoves = helper 0 (wrap endWins) (wrap endLoses) (wrap endLoses)  where
     wrap = IM.fromList . map (, 0)
-    helper d w l p = if IM.null p || d == 7
+    helper d w l p = if IM.null p || d == 200
                      then return (w, l)
                      else
                        do
@@ -161,18 +160,17 @@ stepM d wins loses ps = do
                    
 
 
-depth = 16
-table = buildTable depth :: (M.Map Board Int, M.Map Board Int)
-longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
-
 
 benchmark = defaultMain [
                    bgroup "single lose" [ bench "7" $ whnfIO buildInteractiveChessInt]
             ]
 
 mainFunc :: IO ()
---mainFunc = void buildInteractiveChessInt --printBoard . fst $ (longestLoses !! 0)
-mainFunc = benchmark
+mainFunc = do
+             (w,l) <- buildInteractiveChessInt
+             traverse_ (BS.appendFile "tablebase/w.txt" . BSU.fromString . (++ "\n") . show) (IM.assocs w)
+             traverse_ (BS.appendFile "tablebase/l.txt" . BSU.fromString . (++ "\n") . show) (IM.assocs l)
+--mainFunc = benchmark
 --mainFunc = print . map (length . snd) . IM.assocs $ availMovesM  
 
 --mainFunc = print (length loses)
@@ -253,7 +251,7 @@ newtype BoardInt = BoardInt {getBoardInt :: Int} deriving (Show, Eq, Ord)
 instance Game BoardInt where
   moves    = map (BoardInt . fromEnum) . availMovesBoard . toEnum . getBoardInt             
   preMoves = map (BoardInt . fromEnum) . prevMovesBoard . toEnum . getBoardInt
-  endLoses = map (BoardInt . fromEnum)  [mateBoard]--loses
+  endLoses = map (BoardInt . fromEnum) loses --[mateBoard]--loses
   endWins  = map (BoardInt . fromEnum) ([] :: [Board])
 
 
