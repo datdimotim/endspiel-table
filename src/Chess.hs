@@ -26,10 +26,11 @@ import qualified Data.Set as S
 
 import Data.Array (Array, Ix, listArray, (!), (//), assocs)
 
+import Criterion.Main
+
 import qualified Data.HashTable.IO as H
 import Data.Hashable
 type HashTable k v = H.BasicHashTable k v
-
 
 viewAvailMovesFrom :: Board -> Coords -> IO ()
 viewAvailMovesFrom b c = let
@@ -84,7 +85,7 @@ buildInteractiveChessInt = let
 buildTableInteractiveInt :: [Int] -> [Int] -> (Int -> [Int]) -> (Int -> [Int]) -> IO (IntMap Int, IntMap Int)
 buildTableInteractiveInt endWins endLoses moves preMoves = helper 0 (wrap endWins) (wrap endLoses) (wrap endLoses)  where
     wrap = IM.fromList . map (, 0)
-    helper d w l p = if IM.null p || d == 15
+    helper d w l p = if IM.null p || d == 7
                      then return (w, l)
                      else
                        do
@@ -165,9 +166,13 @@ table = buildTable depth :: (M.Map Board Int, M.Map Board Int)
 longestLoses =  filter ((==(depth-1)) . snd) . M.toList . fst $ table
 
 
-mainFunc :: IO ()
-mainFunc = void buildInteractiveChessInt --printBoard . fst $ (longestLoses !! 0)
+benchmark = defaultMain [
+                   bgroup "single lose" [ bench "7" $ whnfIO buildInteractiveChessInt]
+            ]
 
+mainFunc :: IO ()
+--mainFunc = void buildInteractiveChessInt --printBoard . fst $ (longestLoses !! 0)
+mainFunc = benchmark
 --mainFunc = print . map (length . snd) . IM.assocs $ availMovesM  
 
 --mainFunc = print (length loses)
